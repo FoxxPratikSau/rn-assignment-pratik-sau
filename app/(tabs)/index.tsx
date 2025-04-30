@@ -1,74 +1,118 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import JobDetailModal from '@/app/modals/JobDetailModal';
+import ProfileModal from '@/app/modals/ProfileModal';
+import JobsList from '@/components/JobsList';
+import { useQueryClient } from '@tanstack/react-query';
+import { ParsedJobData } from '@/api/types';
+import { useRefreshHandler } from '@/hooks/useRefreshHandler';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const JobsScreen = () => {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  const queryClient = useQueryClient();
+  const [selectedJob, setSelectedJob] = useState<ParsedJobData | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [refreshing, handleRefresh] = useRefreshHandler(
+    useCallback(() => queryClient.invalidateQueries({ queryKey: ['jobs'] }), [queryClient])
   );
-}
+
+  const handleJobPress = useCallback((job: ParsedJobData) => {
+    setSelectedJob(job);
+    setModalVisible(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+  }, []);
+
+  const openProfileModal = useCallback(() => {
+    setProfileModalVisible(true);
+  }, []);
+
+  const closeProfileModal = useCallback(() => {
+    setProfileModalVisible(false);
+  }, []);
+
+  return (
+    <SafeAreaView 
+      style={[styles.container, { backgroundColor: colors.background }]} 
+      edges={['top', 'left', 'right']}
+    >
+      <View style={[styles.header, { 
+        backgroundColor: colors.headerBackground,
+        borderBottomColor: colors.headerBorder
+      }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Jobs
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={[styles.headerButton, { backgroundColor: colors.buttonBackground }]}
+            onPress={openProfileModal}
+          >
+            <Ionicons name="person-circle-outline" size={28} color={colors.icon} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      <View style={styles.listContainer}>
+        <JobsList 
+          onJobPress={handleJobPress}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      </View>
+
+      <JobDetailModal 
+        visible={modalVisible}
+        job={selectedJob}
+        onClose={closeModal}
+      />
+
+      <ProfileModal
+        visible={profileModalVisible}
+        onClose={closeProfileModal}
+      />
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  listContainer: {
+    flex: 1,
   },
 });
+
+export default JobsScreen;
